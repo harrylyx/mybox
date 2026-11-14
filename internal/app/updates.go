@@ -39,19 +39,20 @@ func (a *App) viewUpdateSettings(c *ui.Context, th *ui.Theme) {
 	if !a.updates {
 		return
 	}
-	ui.Text(c, "更新").FontSize(fontCaption).TextColor(th.TextMuted)
-	a.updateToggle(c, th, "update-checks", "自动检查更新", updateCheckedText(lastUpdateCheck()), updateChecks, setUpdateChecks, false)
-	a.updateToggle(c, th, "update-downloads", "下载后下次启动安装", "下载新版本，下次打开应用时安装", updateDownloads, setUpdateDownloads, !updateChecks())
+	settingsCard(c, th, "settings-updates", "更新", func() {
+		a.updateToggle(c, th, "update-checks", "自动检查更新", updateCheckedText(lastUpdateCheck()), updateChecks, setUpdateChecks, false)
+		a.updateToggle(c, th, "update-downloads", "下载后下次启动安装", "下载新版本，下次打开应用时安装", updateDownloads, setUpdateDownloads, !updateChecks())
 
-	label := "当前版本"
-	if ver := strings.TrimSpace(mygo.App.Version()); ver != "" {
-		label = "当前版本 " + ver
-	}
-	ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, label).FontSize(fontBody).Grow(1)
-		if ui.Button(c, "检查更新").Clicked() {
-			checkForUpdates()
+		label := "当前版本"
+		if ver := strings.TrimSpace(mygo.App.Version()); ver != "" {
+			label = "当前版本 " + ver
 		}
+		ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, label).FontSize(fontBody).Grow(1)
+			if ui.Button(c, "检查更新").Clicked() {
+				checkForUpdates()
+			}
+		})
 	})
 }
 

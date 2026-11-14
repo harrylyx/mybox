@@ -386,26 +386,30 @@ func (a *App) subsPanel(c *ui.Context, th *ui.Theme, page bool) {
 
 func (a *App) viewSettings(c *ui.Context, th *ui.Theme) {
 	ui.Modal(c, &a.settingsOpen, func() {
-		ui.Column(c).Width(480).Gap(16).Children(func() {
+		ui.Column(c).Width(500).Gap(14).Children(func() {
 			ui.Text(c, "设置").FontSize(fontHeadline).Bold()
-			ui.Text(c, "外观").FontSize(fontCaption).TextColor(th.TextMuted)
-			ui.Row(c).Gap(8).Children(func() {
-				for _, opt := range [][2]string{{appearanceSystem, "跟随系统"}, {appearanceLight, "浅色"}, {appearanceDark, "深色"}} {
-					cur := a.appearance
-					if !validAppearance(cur) {
-						cur = appearanceSystem
-					}
-					a.choice(c, th, "外观"+opt[1], opt[1], cur == opt[0], func() {
-						a.appearance = opt[0]
-						a.saveSettings()
+			// The sections scroll together when the window is short; the
+			// title and the one primary action stay put outside the scroll.
+			ui.Scroll(c).FillWidth().MaxHeight(490).Children(func() {
+				ui.Column(c).FillWidth().Gap(10).Children(func() {
+					settingsCard(c, th, "settings-appearance", "外观", func() {
+						ui.Row(c).Gap(8).Children(func() {
+							for _, opt := range [][2]string{{appearanceSystem, "跟随系统"}, {appearanceLight, "浅色"}, {appearanceDark, "深色"}} {
+								cur := a.appearance
+								if !validAppearance(cur) {
+									cur = appearanceSystem
+								}
+								a.choice(c, th, "外观"+opt[1], opt[1], cur == opt[0], func() {
+									a.appearance = opt[0]
+									a.saveSettings()
+								})
+							}
+						})
 					})
-				}
+					a.viewUpdateSettings(c, th)
+					a.viewStorageSettings(c, th)
+				})
 			})
-
-			a.viewUpdateSettings(c, th)
-
-			a.viewStorageSettings(c, th)
-
 			ui.Row(c).Gap(8).Justify(ui.End).Children(func() {
 				if ui.PrimaryButton(c, "完成").Clicked() {
 					a.settingsOpen = false
@@ -415,17 +419,39 @@ func (a *App) viewSettings(c *ui.Context, th *ui.Theme) {
 	})
 }
 
+// settingsCard groups one section of the dialog in a captioned surface, so
+// it reads as three short groups instead of one long list of controls.
+func settingsCard(c *ui.Context, th *ui.Theme, key, caption string, body func()) {
+	ui.Column(c.Key(key)).FillWidth().Padding(12, 14).Gap(8).
+		Radius(10).Background(th.Surface).Border(1, th.Border).Children(func() {
+		ui.Text(c, caption).FontSize(fontCaption).Bold().TextColor(th.TextMuted)
+		body()
+	})
+}
+
 // viewStorageSettings is the settings modal's 存储 section: each cache
-// with what it takes and a way to drop it. A clear asks twice, as
-// deleting subscriptions does, so a slip does not wipe the collection.
+// with what it takes and a way to drop it, plus the crash log's directory.
+// A clear asks twice, as deleting subscriptions does, so a slip does not
+// wipe the collection.
 func (a *App) viewStorageSettings(c *ui.Context, th *ui.Theme) {
 	// No settingsPath means nowhere to keep the files (tests); the
 	// in-memory posters alone are not worth the row.
 	if a.settingsPath == "" {
 		return
 	}
-	ui.Text(c, "存储").FontSize(fontCaption).TextColor(th.TextMuted)
-	ui.Column(c).Gap(6).Children(func() {
+	settingsCard(c, th, "settings-storage", "存储", func() {
+		// The log is not a cache: it is the evidence a crash report needs.
+		// It leads the group so the shortcut stays visible on short windows,
+		// and opens its directory instead of deleting it.
+		ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, "运行日志").FontSize(fontBody)
+			ui.Text(c, humanBytes(a.fileSize(a.logPath()))).FontSize(fontCaption).TextColor(th.TextMuted)
+			ui.Box(c).Grow(1)
+			if ui.Button(c, "打开").Tooltip("在文件管理器里打开 quickbo.log 所在目录").Clicked() {
+				a.openLogDir()
+			}
+		})
+		ui.Box(c).FillWidth().Height(1).Background(th.Border)
 		var records int64
 		for _, p := range a.recordPaths() {
 			records += a.fileSize(p)
@@ -440,25 +466,27 @@ func (a *App) viewStorageSettings(c *ui.Context, th *ui.Theme) {
 			{"configs", "订阅解析", humanBytes(a.fileSize(a.configCachePath())), a.clearConfigCache},
 			{"records", "临时记录", humanBytes(records), a.clearRecords},
 		}
-		for _, row := range rows {
-			row := row
-			ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, row.name).FontSize(fontBody)
-				ui.Text(c, row.size).FontSize(fontCaption).TextColor(th.TextMuted)
-				ui.Box(c).Grow(1)
-				if a.cacheConfirm == row.key {
-					if ui.Button(c, "取消").Clicked() {
-						a.cacheConfirm = ""
+		ui.Column(c).Gap(6).Children(func() {
+			for _, row := range rows {
+				row := row
+				ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
+					ui.Text(c, row.name).FontSize(fontBody)
+					ui.Text(c, row.size).FontSize(fontCaption).TextColor(th.TextMuted)
+					ui.Box(c).Grow(1)
+					if a.cacheConfirm == row.key {
+						if ui.Button(c, "取消").Clicked() {
+							a.cacheConfirm = ""
+						}
+						if ui.Button(c, "确认清除").Clicked() {
+							row.clear()
+							a.cacheConfirm = ""
+						}
+					} else if ui.Button(c, "清除").Clicked() {
+						a.cacheConfirm = row.key
 					}
-					if ui.Button(c, "确认清除").Clicked() {
-						row.clear()
-						a.cacheConfirm = ""
-					}
-				} else if ui.Button(c, "清除").Clicked() {
-					a.cacheConfirm = row.key
-				}
-			})
-		}
+				})
+			}
+		})
 	})
 }
 

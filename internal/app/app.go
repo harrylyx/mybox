@@ -84,6 +84,9 @@ type App struct {
 	fetchConfig func(context.Context, string) (*config.Config, error)
 	// probeSite overrides the empty-list check in tests.
 	probeSite func(context.Context, source.Source) (model.Page, bool)
+	// revealDir overrides opening the log directory in tests, so a click
+	// does not launch the desktop's file manager.
+	revealDir func(string)
 	afterLoad func()
 	postMu    sync.Mutex
 
