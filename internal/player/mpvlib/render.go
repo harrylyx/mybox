@@ -175,13 +175,19 @@ var (
 
 func updateCallback() uintptr {
 	updateCBOnce.Do(func() {
-		updateCB = purego.NewCallback(func(id uintptr) {
+		// The callback must return one uintptr-sized result: purego on
+		// Windows routes NewCallback through syscall.NewCallback, which
+		// panics at registration over a void function. Returning 0 is
+		// harmless everywhere: the C side declares the callback void and
+		// ignores the return register.
+		updateCB = purego.NewCallback(func(id uintptr) uintptr {
 			if ch, ok := updateSinks.Load(id); ok {
 				select {
 				case ch.(chan struct{}) <- struct{}{}:
 				default:
 				}
 			}
+			return 0
 		})
 	})
 	return updateCB
