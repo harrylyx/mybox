@@ -38,6 +38,15 @@ func decode(raw []byte, depth int) ([]byte, error) {
 	if raw[0] == '{' || raw[0] == '[' {
 		return raw, nil
 	}
+	// JSONC subscriptions open with // or /* comments, hiding the opening
+	// brace from the check above. Lenient strips comments (and is a no-op
+	// on the already-cleaned output Parse feeds it later); accept the
+	// result when the document now starts like JSON.
+	if raw[0] == '/' {
+		if cleaned := bytes.TrimSpace(Lenient(raw)); len(cleaned) > 0 && (cleaned[0] == '{' || cleaned[0] == '[') {
+			return cleaned, nil
+		}
+	}
 	if i := bytes.Index(raw, []byte("**")); i >= 0 && i < 64 {
 		if out, ok := tryBase64(raw[i+2:]); ok {
 			return decode(out, depth+1)

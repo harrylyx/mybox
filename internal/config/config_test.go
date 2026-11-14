@@ -43,6 +43,17 @@ func TestParsePlainAndLenient(t *testing.T) {
 	}
 }
 
+func TestParseLeadingComments(t *testing.T) {
+	raw := []byte("// box.json\n// 语言：JSON\n/* block\n comment */\n{\n \"sites\":[\n  {\"key\":\"a\",\"name\":\"A\",\"type\":1,\"api\":\"https://example.com/api.php/provide/vod/\"}\n ],\n}")
+	cfg, err := Parse(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.Sites) != 1 || cfg.Sites[0].Key != "a" {
+		t.Fatalf("sites = %+v", cfg.Sites)
+	}
+}
+
 func TestParseBase64AndGzip(t *testing.T) {
 	plain := []byte(`{"sites":[{"key":"x","name":"X","type":0,"api":"https://cms.example/api.php/provide/vod/"}]}`)
 	var gz bytes.Buffer
