@@ -3,7 +3,12 @@ package main
 
 import (
 	"flag"
+	"io"
 	"log"
+	"os"
+	"path/filepath"
+	"runtime"
+	"runtime/debug"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -16,6 +21,7 @@ func main() {
 	if *ref == "" && flag.NArg() > 0 {
 		*ref = flag.Arg(0)
 	}
+	setupCrashLog()
 	application := app.New()
 	application.UseUpdater()
 	mygo.App.WhenReady(func() {
@@ -45,7 +51,37 @@ func main() {
 			application.LoadSaved()
 		}
 	})
+	defer func() {
+		// A crash launched from the desktop closes the console with the
+		// app: keep the panic and its stack in quickbo.log so it can be
+		// read afterwards instead of flashing away.
+		if r := recover(); r != nil {
+			log.Printf("panic: %v\n%s", r, debug.Stack())
+			panic(r)
+		}
+	}()
 	if err := mygo.App.Run(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// setupCrashLog sends log output to quickbo.log beside the settings, in
+// addition to the console. Errors are ignored on purpose: a broken log must
+// never keep the app from starting.
+func setupCrashLog() {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return
+	}
+	dir = filepath.Join(dir, "quickbo")
+	if os.MkdirAll(dir, 0o755) != nil {
+		return
+	}
+	f, err := os.OpenFile(filepath.Join(dir, "quickbo.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		return
+	}
+	log.SetOutput(io.MultiWriter(os.Stderr, f))
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
+	log.Printf("QuickBo 启动（%s %s）", runtime.GOOS, runtime.Version())
 }

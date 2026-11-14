@@ -5,6 +5,7 @@ package playback
 
 import (
 	"context"
+	"log"
 	"os"
 
 	"github.com/harrylyx/QuickBo/internal/player"
@@ -46,14 +47,17 @@ func (c *Controller) Play(ctx context.Context, raw string, headers map[string]st
 		if err == nil {
 			if err := p.Load(ctx, raw, headers); err != nil {
 				_ = p.Close()
+				log.Printf("playback: libmpv 打开失败: %v", err)
 				return nil, err
 			}
 			return p, nil
 		}
 		c.libErr = err
+		log.Printf("playback: 回退到独立 mpv 窗口: %v", err)
 	}
 	exe, err := c.mpv()
 	if err != nil {
+		log.Printf("playback: 找不到 mpv: %v", err)
 		return nil, err
 	}
 	p, err := mpvproc.New(exe)
@@ -62,6 +66,7 @@ func (c *Controller) Play(ctx context.Context, raw string, headers map[string]st
 	}
 	if err := p.Load(ctx, raw, headers); err != nil {
 		_ = p.Close()
+		log.Printf("playback: mpv 子进程打开失败: %v", err)
 		return nil, err
 	}
 	return p, nil

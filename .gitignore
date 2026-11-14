@@ -3,6 +3,7 @@
 /dist/
 *.exe
 .DS_Store
+spike_gopy/
 
 # IDE / agent tooling (local, not part of the project)
 .agents/

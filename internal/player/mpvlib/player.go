@@ -213,6 +213,15 @@ func (p *Player) eventLoop(h unsafe.Pointer, done chan struct{}) {
 		if ev == nil {
 			continue
 		}
+		if ev.ID == eventNone {
+			// No event was waiting. The timeout argument cannot be
+			// passed through purego on Windows (it goes to an integer
+			// register where the callee reads a float register), so the
+			// timeout mpv actually sees is not ours and wait_event may
+			// return immediately: pause so that cannot spin the loop.
+			time.Sleep(2 * time.Millisecond)
+			continue
+		}
 		switch ev.ID {
 		case eventShutdown:
 			return

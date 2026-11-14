@@ -45,6 +45,7 @@ const (
 	formatFlag   = 3
 	formatDouble = 5
 
+	eventNone            = 0
 	eventShutdown        = 1
 	eventEndFile         = 7
 	eventFileLoaded      = 8
